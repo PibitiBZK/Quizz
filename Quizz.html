@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Quiz Game</title>
+  <style>
+    :root {
+      --primary-color: #ef5350;
+      --secondary-color: #2a75bb;
+      --accent-color: #ffcb05;
+      --bg-color: #f4f4f9;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      width: 100%;
+      max-width: 500px;
+      padding: 25px;
+      text-align: center;
+    }
+
+    h1 {
+      color: var(--primary-color);
+      margin-bottom: 20px;
+      font-size: 1.8rem;
+    }
+
+    .config-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-bottom: 25px;
+      text-align: left;
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+    }
+
+    .config-group label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .checkbox-options {
+      display: flex;
+      gap: 15px;
+    }
+
+    .checkbox-options label {
+      font-weight: normal;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    button.btn {
+      background-color: var(--secondary-color);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+
+    button.btn:hover {
+      background-color: #1b4d7e;
+    }
+
+    .pokemon-img {
+      width: 150px;
+      height: 150px;
+      object-fit: contain;
+      margin: 15px 0;
+    }
+
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .option-btn {
+      background-color: #e9ecef;
+      border: 2px solid #ced4da;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .option-btn:hover {
+      background-color: #dee2e6;
+    }
+
+    .option-btn.correct {
+      background-color: #28a745;
+      color: white;
+      border-color: #28a745;
+    }
+
+    .option-btn.incorrect {
+      background-color: #dc3545;
+      color: white;
+      border-color: #dc3545;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .stats {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Pokémon Quiz</h1>
+
+    <!-- PANTALLA DE CONFIGURACIÓN -->
+    <div id="setup-screen">
+      <div class="config-panel">
+        <div class="config-group">
+          <label>Dificultad:</label>
+          <div class="checkbox-options">
+            <label><input type="checkbox" name="difficulty" value="facil" onchange="selectDifficulty(this)" checked> Fácil</label>
+            <label><input type="checkbox" name="difficulty" value="medio" onchange="selectDifficulty(this)"> Medio</label>
+            <label><input type="checkbox" name="difficulty" value="dificil" onchange="selectDifficulty(this)"> Difícil</label>
+          </div>
+        </div>
+
+        <div class="config-group">
+          <label for="questionCount">Número de preguntas:</label>
+          <input type="number" id="questionCount" min="1" max="50" value="10" placeholder="Ej. 10">
+        </div>
+      </div>
+
+      <button class="btn" onclick="startGame()">Comenzar Juego</button>
+    </div>
+
+    <!-- PANTALLA DEL JUEGO -->
+    <div id="game-screen" class="hidden">
+      <div class="stats">
+        Pregunta <span id="current-index">1</span> de <span id="total-questions">10</span> | Puntos: <span id="score">0</span>
+      </div>
+      
+      <h3 id="question-text">Cargando...</h3>
+      <img id="pokemon-img" class="pokemon-img hidden" src="" alt="Pokemon">
+
+      <div id="options-container" class="options-grid"></div>
+    </div>
+
+    <!-- PANTALLA DE RESULTADOS -->
+    <div id="result-screen" class="hidden">
+      <h2>¡Juego Terminado!</h2>
+      <p style="margin: 20px 0; font-size: 1.2rem;">Tu puntaje final es: <strong id="final-score">0</strong></p>
+      <button class="btn" onclick="restartGame()">Volver a Jugar</button>
+    </div>
+  </div>
+
+  <script>
+    // Mapa de Regiones según ID
+    const REGION_MAP = [
+      { limit: 151, region: "Kanto (Gen 1)" },
+      { limit: 251, region: "Johto (Gen 2)" },
+      { limit: 386, region: "Hoenn (Gen 3)" },
+      { limit: 493, region: "Sinnoh (Gen 4)" },
+      { limit: 649, region: "Unova / Teselia (Gen 5)" },
+      { limit: 721, region: "Kalos (Gen 6)" },
+      { limit: 809, region: "Alola (Gen 7)" },
+      { limit: 898, region: "Galar (Gen 8)" },
+      { limit: 1025, region: "Paldea (Gen 9)" }
+    ];
+
+    let gameState = {
+      totalQuestions: 10,
+      currentQuestionIndex: 0,
+      score: 0,
+      questions: [],
+      difficulty: 'facil'
+    };
+
+    // Selección Única de Checkboxes de Dificultad
+    function selectDifficulty(selectedCheckbox) {
+      const checkboxes = document.querySelectorAll('input[name="difficulty"]');
+      checkboxes.forEach(cb => {
+        if (cb !== selectedCheckbox) cb.checked = false;
+      });
+      if (!selectedCheckbox.checked) selectedCheckbox.checked = true;
+    }
+
+    function getSelectedDifficulty() {
+      const selected = document.querySelector('input[name="difficulty"]:checked');
+      return selected ? selected.value : 'facil';
+    }
+
+    function getQuestionCount() {
+      const input = document.getElementById('questionCount');
+      let val = parseInt(input.value, 10);
+      return (isNaN(val) || val < 1) ? 10 : val;
+    }
+
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function getRegion(id) {
+      const found = REGION_MAP.find(r => id <= r.limit);
+      return found ? found.region : "Desconocida";
+    }
+
+    async function startGame() {
+      gameState.difficulty = getSelectedDifficulty();
+      gameState.totalQuestions = getQuestionCount();
+      gameState.currentQuestionIndex = 0;
+      gameState.score = 0;
+
+      document.getElementById('setup-screen').classList.add('hidden');
+      document.getElementById('result-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+
+      document.getElementById('total-questions').innerText = gameState.totalQuestions;
+      document.getElementById('score').innerText = gameState.score;
+
+      await loadQuestions();
+      showQuestion();
+    }
+
+    async function loadQuestions() {
+      gameState.questions = [];
+      
+      // Rango de Pokémon según dificultad
+      let maxPokemon = 151;
+      if (gameState.difficulty === 'medio') maxPokemon = 493;
+      if (gameState.difficulty === 'dificil') maxPokemon = 898;
+
+      for (let i = 0; i < gameState.totalQuestions; i++) {
+        const randomId = Math.floor(Math.random() * maxPokemon) + 1;
+        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+        const data = await res.json();
+        
+        const qTypes = ['region', 'height'];
+        const qType = qTypes[Math.floor(Math.random() * qTypes.length)];
+        
+        gameState.questions.push(buildQuestionData(data, qType));
+      }
+    }
+
+    function buildQuestionData(pokemon, type) {
+      let question = "";
+      let correctAnswer = "";
+      let options = [];
+
+      if (type === 'region') {
+        question = `¿En qué región/generación apareció por primera vez ${pokemon.name.toUpperCase()}?`;
+        correctAnswer = getRegion(pokemon.id);
+        
+        // CORRECCIÓN DE REGIÓN: Garantiza que la respuesta correcta siempre esté incluida
+        const otherRegions = REGION_MAP
+          .map(r => r.region)
+          .filter(r => r !== correctAnswer);
+        
+        const distractors = shuffleArray(otherRegions).slice(0, 3);
+        options = shuffleArray([correctAnswer, ...distractors]);
+
+      } else if (type === 'height') {
+        question = `¿Cuál es la altura aproximada de ${pokemon.name.toUpperCase()}?`;
+        const heightMeters = (pokemon.height / 10).toFixed(1);
+        correctAnswer = `${heightMeters} m`;
+
+        // CORRECCIÓN DE ALTURA: Generación limpia sin "N/A"
+        const optionsSet = new Set([correctAnswer]);
+        while (optionsSet.size < 4) {
+          const offset = (Math.floor(Math.random() * 30) - 15) / 10;
+          const fakeVal = Math.max(0.1, parseFloat(heightMeters) + offset).toFixed(1);
+          optionsSet.add(`${fakeVal} m`);
+        }
+        options = shuffleArray(Array.from(optionsSet));
+      }
+
+      return {
+        question: question,
+        img: pokemon.sprites.front_default,
+        correctAnswer: correctAnswer,
+        options: options
+      };
+    }
+
+    function showQuestion() {
+      const q = gameState.questions[gameState.currentQuestionIndex];
+      document.getElementById('current-index').innerText = gameState.currentQuestionIndex + 1;
+      document.getElementById('question-text').innerText = q.question;
+      
+      const imgEl = document.getElementById('pokemon-img');
+      if (q.img) {
+        imgEl.src = q.img;
+        imgEl.classList.remove('hidden');
+      } else {
+        imgEl.classList.add('hidden');
+      }
+
+      const optionsContainer = document.getElementById('options-container');
+      optionsContainer.innerHTML = '';
+
+      q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerText = opt;
+        btn.onclick = () => checkAnswer(opt, q.correctAnswer, btn);
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    function checkAnswer(selected, correct, btn) {
+      const allBtns = document.querySelectorAll('.option-btn');
+      allBtns.forEach(b => b.disabled = true);
+
+      if (selected === correct) {
+        btn.classList.add('correct');
+        gameState.score += 10;
+        document.getElementById('score').innerText = gameState.score;
+      } else {
+        btn.classList.add('incorrect');
+        allBtns.forEach(b => {
+          if (b.innerText === correct) b.classList.add('correct');
+        });
+      }
+
+      setTimeout(() => {
+        gameState.currentQuestionIndex++;
+        if (gameState.currentQuestionIndex < gameState.totalQuestions) {
+          showQuestion();
+        } else {
+          endGame();
+        }
+      }, 1500);
+    }
+
+    function endGame() {
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('result-screen').classList.remove('hidden');
+      document.getElementById('final-score').innerText = gameState.score;
+    }
+
+    function restartGame() {
+      document.getElementById('result-screen').classList.add('hidden');
+      document.getElementById('setup-screen').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
